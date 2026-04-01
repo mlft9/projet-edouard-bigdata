@@ -20,7 +20,3 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", ""),
 }
 
-# Chemins Data Lake
-DATA_LAKE_RAW_API = "data_lake/raw/api"
-DATA_LAKE_RAW_SCRAPED = "data_lake/raw/scraped"
-DATA_LAKE_PROCESSED = "data_lake/processed"

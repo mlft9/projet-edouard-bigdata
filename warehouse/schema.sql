@@ -67,10 +67,9 @@ CREATE TABLE IF NOT EXISTS team_stats_scraped (
     id              SERIAL PRIMARY KEY,
     team_id         INTEGER REFERENCES teams(id),
     season          VARCHAR(20),
-    xg              NUMERIC(6,2),
-    xg_against      NUMERIC(6,2),
-    possession_pct  NUMERIC(5,2),
-    passes_completed INTEGER,
-    source_url      TEXT,
+    squad_size      INTEGER,
+    avg_age         NUMERIC(4,1),
+    foreigners      INTEGER,
+    market_value_m  NUMERIC(10,2),
     UNIQUE (team_id, season)
 );
