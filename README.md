@@ -200,7 +200,7 @@ SELECT position, team_name, points FROM standings ORDER BY position LIMIT 5;
 | Service | URL |
 |---------|-----|
 | Spark UI | http://localhost:8080 |
-| HDFS Namenode | http://localhost:9870 |
+| HDFS Namenode UI | http://localhost:9870 |
 | Dashboard Streamlit | http://localhost:8501 |
 
 ---

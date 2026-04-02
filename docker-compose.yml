@@ -70,9 +70,11 @@ services:
     container_name: namenode
     environment:
       - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - HDFS_CONF_dfs_permissions_enabled=false
     ports:
       - "9870:9870"
-      - "9000:9000"
+      - "8020:8020"
     volumes:
       - namenode_data:/hadoop/dfs/name
     restart: unless-stopped
@@ -81,7 +83,7 @@ services:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: datanode
     environment:
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
     volumes:
       - datanode_data:/hadoop/dfs/data
     depends_on:

@@ -26,6 +26,8 @@ from pyspark.sql import SparkSession
 KAFKA_BOOTSTRAP = "kafka:29092"       # adresse interne Docker
 KAFKA_TOPIC     = "etl_topic"
 
+HDFS_ROOT = "hdfs://namenode:8020"    # data lake HDFS
+
 DB_HOST     = "postgres"
 DB_PORT     = 5432
 DB_NAME     = "football_dw"
@@ -82,6 +84,19 @@ for row in rows:
 
 for t, records in buckets.items():
     print(f"  {t}: {len(records)} enregistrement(s)")
+
+# ── Sauvegarde dans HDFS (data lake raw) ─────────────────────────────────────
+
+print("\n=== Sauvegarde dans HDFS ===")
+try:
+    for type_donnee, data in buckets.items():
+        if data:
+            df_hdfs = spark.createDataFrame(data)
+            path = f"{HDFS_ROOT}/data/raw/{type_donnee}"
+            df_hdfs.write.mode("overwrite").json(path)
+            print(f"  → /data/raw/{type_donnee} ({len(data)} entrées)")
+except Exception as e:
+    print(f"  ⚠ HDFS indisponible, on continue sans : {e}")
 
 # ── Truncation Postgres (ordre FK-safe) ───────────────────────────────────────
 
