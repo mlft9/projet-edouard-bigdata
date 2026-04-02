@@ -43,7 +43,14 @@ Python (main.py)
 Spark (spark_job.py)
   │
   ├── Lecture batch depuis Kafka (etl_topic)
-  ├── Tri des messages par type
+  ├── Tri des messages par type + dédoublonnage
+  ├── Sauvegarde dans HDFS (hdfs://namenode:8020/data/raw/)
+  │     ├── /data/raw/competition
+  │     ├── /data/raw/teams
+  │     ├── /data/raw/standings
+  │     ├── /data/raw/matches
+  │     ├── /data/raw/scorers
+  │     └── /data/raw/market_values
   ├── Truncation des tables PostgreSQL (CASCADE)
   └── Chargement via JDBC
         ├── competitions       →  1 ligne
@@ -114,7 +121,7 @@ projet/
 │   └── load.py                # Chargement direct (sans Kafka, pour debug)
 ├── dashboard/
 │   └── app.py                 # Interface Streamlit
-├── spark_job.py               # Job Spark : lit Kafka → charge PostgreSQL
+├── spark_job.py               # Job Spark : lit Kafka → HDFS + PostgreSQL
 ├── docker-compose.yml         # Zookeeper, Kafka, PostgreSQL, Spark, HDFS
 ├── main.py                    # Orchestrateur : ingestion → transformation → Kafka
 ├── requirements.txt
