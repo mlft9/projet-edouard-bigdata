@@ -106,84 +106,142 @@ scorers                    │
 
 ```
 projet/
-├── config/
-│   └── config.py              # Clé API, connexion DB, config Kafka
-├── ingestion/
-│   ├── api_client.py          # Collecte depuis football-data.org
-│   ├── kafka_producer.py      # Envoi des données vers Kafka
-│   └── scraper.py             # Scraping transfermarkt.com
-├── transformation/
-│   ├── transform_api.py       # Nettoyage données API → DataFrames
-│   ├── transform_scraped.py   # Nettoyage données scrapées
-│   └── merge.py               # Correspondance noms d'équipes
-├── warehouse/
-│   ├── schema.sql             # Définition des tables PostgreSQL
-│   └── load.py                # Chargement direct (sans Kafka, pour debug)
-├── dashboard/
-│   └── app.py                 # Interface Streamlit
-├── spark_job.py               # Job Spark : lit Kafka → HDFS + PostgreSQL
-├── docker-compose.yml         # Zookeeper, Kafka, PostgreSQL, Spark, HDFS
-├── main.py                    # Orchestrateur : ingestion → transformation → Kafka
+├── src/
+│   ├── config/
+│   │   └── config.py              # Clé API, connexion DB, config Kafka
+│   ├── ingestion/
+│   │   ├── api_client.py          # Collecte depuis football-data.org
+│   │   ├── kafka_producer.py      # Envoi des données vers Kafka
+│   │   └── scraper.py             # Scraping transfermarkt.com
+│   ├── transformation/
+│   │   ├── transform_api.py       # Nettoyage données API → DataFrames
+│   │   ├── transform_scraped.py   # Nettoyage données scrapées
+│   │   └── merge.py               # Correspondance noms d'équipes
+│   ├── warehouse/
+│   │   ├── schema.sql             # Définition des tables PostgreSQL
+│   │   └── load.py                # Chargement direct (sans Kafka, pour debug)
+│   ├── dashboard/
+│   │   └── app.py                 # Interface Streamlit
+│   ├── spark_job.py               # Job Spark : lit Kafka → HDFS + PostgreSQL
+│   └── main.py                    # Orchestrateur : ingestion → transformation → Kafka
+├── docker-compose.yml             # Zookeeper, Kafka, PostgreSQL, Spark, HDFS
 ├── requirements.txt
-└── .env                       # Clé API + credentials DB (non versionné)
+└── .env                           # Clé API + credentials DB (non versionné)
 ```
 
 ---
 
-## Installation
+## Installation et lancement complet
 
 ### Prérequis
 - Python 3.10+
-- Docker Desktop
+- Docker Desktop (lancé et fonctionnel)
+- Un compte sur [football-data.org](https://www.football-data.org/) pour obtenir une clé API gratuite
 
-### 1. Cloner et installer les dépendances
+---
+
+### Étape 1 — Cloner le projet
+
 ```bash
 git clone <repo>
 cd projet
-python -m venv venv
-venv\Scripts\activate        # Windows
-pip install -r requirements.txt
-```
-
-### 2. Configurer les variables d'environnement
-```bash
-cp .env.example .env
-# Renseigner la clé API football-data.org dans .env
 ```
 
 ---
 
-## Lancement du pipeline
+### Étape 2 — Créer l'environnement Python
 
-### 1. Démarrer l'infrastructure Docker
+```bash
+# Créer le venv
+python -m venv venv
+
+# Activer (Windows)
+venv\Scripts\activate
+
+# Activer (Mac/Linux)
+source venv/bin/activate
+
+# Installer les dépendances
+pip install -r requirements.txt
+```
+
+---
+
+### Étape 3 — Configurer les variables d'environnement
+
+Copier le fichier d'exemple et le remplir :
+
+```bash
+cp .env.example .env
+```
+
+Contenu du `.env` à renseigner :
+
+```env
+# Clé API football-data.org (gratuite sur https://www.football-data.org/)
+FOOTBALL_API_KEY=your_api_key_here
+
+# PostgreSQL (laisser ces valeurs par défaut si vous utilisez Docker)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=football_dw
+DB_USER=postgres
+DB_PASSWORD=postgres
+```
+
+---
+
+### Étape 4 — Démarrer l'infrastructure Docker
+
 ```bash
 docker compose up -d
 ```
-Attendre ~20 secondes que Kafka soit prêt.
 
-### 2. Lancer le pipeline Python (producteur Kafka)
+Vérifier que tous les conteneurs sont bien démarrés :
+
 ```bash
-python main.py
+docker compose ps
 ```
-Collecte les données, les transforme, et les envoie vers le topic Kafka `etl_topic`.
 
-### 3. Lancer le job Spark (consommateur → PostgreSQL)
+Attendre ~20-30 secondes que Kafka et HDFS soient prêts avant de continuer.
 
-Première fois uniquement :
+---
+
+### Étape 5 — Lancer le pipeline Python (collecte → Kafka)
+
+```bash
+python src/main.py
+```
+
+Ce script collecte les données depuis l'API et Transfermarkt, les transforme, et envoie 371 messages vers le topic Kafka `etl_topic`. Durée : ~1 minute (rate limit API gratuit).
+
+---
+
+### Étape 6 — Lancer le job Spark (Kafka → HDFS + PostgreSQL)
+
+**Première fois uniquement** — installer psycopg2 dans le conteneur Spark :
+
 ```bash
 docker exec -u root spark-master pip install psycopg2-binary -q
 ```
 
-Puis lancer le job (sur une seule ligne) :
-```bash
-docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.7.3 /opt/spark-apps/spark_job.py
-```
-Le premier lancement télécharge les JARs Kafka et PostgreSQL (~1 min). Les suivants sont instantanés.
+**Lancer le job :**
 
-### 4. Lancer le dashboard
 ```bash
-streamlit run dashboard/app.py
+docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.7.3 /opt/spark-apps/src/spark_job.py
 ```
+
+> Le premier lancement télécharge les JARs Kafka et PostgreSQL (~1 min). Les suivants sont instantanés.
+
+---
+
+### Étape 7 — Lancer le dashboard
+
+```bash
+streamlit run src/dashboard/app.py
+```
+
+Ouvrir http://localhost:8501 dans le navigateur.
 
 ---
 
