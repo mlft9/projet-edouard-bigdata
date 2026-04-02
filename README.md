@@ -1,6 +1,7 @@
 # Pipeline Big Data — Ligue 1
 
-Pipeline de données complet allant de la collecte à la visualisation, combinant une API REST et du scraping web pour alimenter un Data Warehouse PostgreSQL.
+Pipeline de données complet : collecte → Kafka → Spark → PostgreSQL → visualisation.  
+Combine une API REST et du scraping web pour alimenter un Data Warehouse PostgreSQL.
 
 ---
 
@@ -10,32 +11,51 @@ Pipeline de données complet allant de la collecte à la visualisation, combinan
 
 ---
 
-## Flux de données détaillé
+## Flux de données
 
 ```
-main.py
+Python (main.py)
   │
   ├── 1. INGESTION
-  │     ├── collecter_classement()   → dict JSON  ──┐
-  │     ├── collecter_equipes()      → dict JSON    │  données
-  │     ├── collecter_matchs()       → dict JSON    │  brutes
-  │     ├── collecter_buteurs()      → dict JSON  ──┤  en mémoire
-  │     └── scraper_valeurs_marche() → DataFrame  ──┘
+  │     ├── collecter_classement()    → dict JSON
+  │     ├── collecter_equipes()       → dict JSON
+  │     ├── collecter_matchs()        → dict JSON
+  │     ├── collecter_buteurs()       → dict JSON
+  │     └── scraper_valeurs_marche()  → DataFrame
   │
-  ├── 2. TRANSFORMATION
-  │     ├── transformer_classement(raw)  → DataFrame (18 lignes)
-  │     ├── transformer_equipes(raw)     → DataFrame (18 lignes)
-  │     ├── transformer_matchs(raw)      → DataFrame (306 lignes)
-  │     ├── transformer_buteurs(raw)     → DataFrame (10 lignes)
-  │     └── transformer_valeurs_marche(raw) → DataFrame (18 lignes)
+  ├── 2. TRANSFORMATION (pandas)
+  │     ├── transformer_classement()  → DataFrame (18 lignes)
+  │     ├── transformer_equipes()     → DataFrame (18 lignes)
+  │     ├── transformer_matchs()      → DataFrame (306 lignes)
+  │     ├── transformer_buteurs()     → DataFrame (10 lignes)
+  │     └── transformer_valeurs_marche() → DataFrame (18 lignes)
   │
-  └── 3. CHARGEMENT
-        ├── charger_competition()   →  1 ligne  dans competitions
-        ├── charger_equipes()       → 18 lignes dans teams
-        ├── charger_classement()    → 18 lignes dans standings
-        ├── charger_matchs()        → 306 lignes dans matches
-        ├── charger_buteurs()       → 10 lignes dans scorers
-        └── charger_valeurs_marche() → 18 lignes dans team_stats_scraped
+  └── 3. ENVOI VERS KAFKA (topic: etl_topic)
+        ├── competition   →  1 message
+        ├── teams         → 18 messages
+        ├── standings     → 18 messages
+        ├── matches       → 306 messages
+        ├── scorers       → 10 messages
+        └── market_values → 18 messages
+
+            ↓ Kafka (broker)
+
+Spark (spark_job.py)
+  │
+  ├── Lecture batch depuis Kafka (etl_topic)
+  ├── Tri des messages par type
+  ├── Truncation des tables PostgreSQL (CASCADE)
+  └── Chargement via JDBC
+        ├── competitions       →  1 ligne
+        ├── teams              → 18 lignes
+        ├── standings          → 18 lignes
+        ├── matches            → 306 lignes
+        ├── scorers            → 10 lignes
+        └── team_stats_scraped → 18 lignes
+
+            ↓ PostgreSQL
+
+Streamlit (dashboard/app.py)
 ```
 
 ---
@@ -62,7 +82,7 @@ scorers                    │
 │ id │ competition_id │ team_id   │   ┌────┬─────────┬──────────────────────┐
 │    │ player_name    │ goals     │   │ id │ team_id │ market_value_m       │
 │    │ assists        │ penalties │   │    │ season  │ squad_size  avg_age  │
-└────┴────────────────┴───────────┘   └────┴────────-┴──────────────────────┘
+└────┴────────────────┴───────────┘   └────┴─────────┴──────────────────────┘
                            │                          ▲
                            └──────────────────────────┘
                                      teams
@@ -80,28 +100,30 @@ scorers                    │
 ```
 projet/
 ├── config/
-│   └── config.py            # Clé API, connexion DB, paramètres
+│   └── config.py              # Clé API, connexion DB, config Kafka
 ├── ingestion/
-│   ├── api_client.py        # Collecte depuis football-data.org
-│   └── scraper.py           # Scraping transfermarkt.com
+│   ├── api_client.py          # Collecte depuis football-data.org
+│   ├── kafka_producer.py      # Envoi des données vers Kafka
+│   └── scraper.py             # Scraping transfermarkt.com
 ├── transformation/
-│   ├── transform_api.py     # Nettoyage données API → DataFrames
-│   ├── transform_scraped.py # Nettoyage données scrapées
-│   └── merge.py             # Fusion des deux sources
+│   ├── transform_api.py       # Nettoyage données API → DataFrames
+│   ├── transform_scraped.py   # Nettoyage données scrapées
+│   └── merge.py               # Correspondance noms d'équipes
 ├── warehouse/
-│   ├── schema.sql           # Définition des tables PostgreSQL
-│   └── load.py              # Insertion en base
+│   ├── schema.sql             # Définition des tables PostgreSQL
+│   └── load.py                # Chargement direct (sans Kafka, pour debug)
 ├── dashboard/
-│   └── app.py               # Interface Streamlit
-├── docker-compose.yml       # PostgreSQL conteneurisé
-├── main.py                  # Orchestrateur du pipeline
+│   └── app.py                 # Interface Streamlit
+├── spark_job.py               # Job Spark : lit Kafka → charge PostgreSQL
+├── docker-compose.yml         # Zookeeper, Kafka, PostgreSQL, Spark, HDFS
+├── main.py                    # Orchestrateur : ingestion → transformation → Kafka
 ├── requirements.txt
-└── .env                     # Clé API + credentials DB (non versionné)
+└── .env                       # Clé API + credentials DB (non versionné)
 ```
 
 ---
 
-## Installation et lancement
+## Installation
 
 ### Prérequis
 - Python 3.10+
@@ -119,23 +141,67 @@ pip install -r requirements.txt
 ### 2. Configurer les variables d'environnement
 ```bash
 cp .env.example .env
-# Éditer .env avec ta clé API et le mot de passe PostgreSQL
+# Renseigner la clé API football-data.org dans .env
 ```
 
-### 3. Démarrer la base de données
+---
+
+## Lancement du pipeline
+
+### 1. Démarrer l'infrastructure Docker
 ```bash
 docker compose up -d
 ```
+Attendre ~20 secondes que Kafka soit prêt.
 
-### 4. Lancer le pipeline (ingestion → transformation → chargement)
+### 2. Lancer le pipeline Python (producteur Kafka)
 ```bash
 python main.py
 ```
+Collecte les données, les transforme, et les envoie vers le topic Kafka `etl_topic`.
 
-### 5. Lancer le dashboard
+### 3. Lancer le job Spark (consommateur → PostgreSQL)
+
+Première fois uniquement :
+```bash
+docker exec -u root spark-master pip install psycopg2-binary -q
+```
+
+Puis lancer le job (sur une seule ligne) :
+```bash
+docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.7.3 /opt/spark-apps/spark_job.py
+```
+Le premier lancement télécharge les JARs Kafka et PostgreSQL (~1 min). Les suivants sont instantanés.
+
+### 4. Lancer le dashboard
 ```bash
 streamlit run dashboard/app.py
 ```
+
+---
+
+## Vérification des données
+
+```bash
+# Se connecter à PostgreSQL
+docker exec -it postgres psql -U postgres -d football_dw
+
+# Vérifier les données
+SELECT COUNT(*) FROM teams;
+SELECT COUNT(*) FROM matches;
+SELECT position, team_name, points FROM standings ORDER BY position LIMIT 5;
+\q
+```
+
+---
+
+## Interfaces web
+
+| Service | URL |
+|---------|-----|
+| Spark UI | http://localhost:8080 |
+| HDFS Namenode | http://localhost:9870 |
+| Dashboard Streamlit | http://localhost:8501 |
 
 ---
 
@@ -147,8 +213,12 @@ streamlit run dashboard/app.py
 | Ingestion API | `requests` |
 | Scraping web | `requests` + `BeautifulSoup` |
 | Transformation | `pandas` |
+| Message broker | Apache Kafka (Confluent 7.6) |
+| Traitement distribué | Apache Spark 3.5 |
 | Base de données | PostgreSQL 16 (Docker) |
-| Driver DB | `pg8000` |
+| Driver DB (local) | `pg8000` |
+| Driver DB (Spark) | PostgreSQL JDBC 42.7 |
+| Stockage distribué | HDFS (Hadoop 3.2) |
 | Visualisation | `Streamlit` + `Plotly` |
 | Conteneurisation | Docker Compose |
 
@@ -158,5 +228,5 @@ streamlit run dashboard/app.py
 
 | Source | Données | Volume |
 |--------|---------|--------|
-| football-data.org API | Classement, matchs, équipes, buteurs | ~350 lignes |
+| football-data.org API | Classement, matchs, équipes, buteurs | ~370 lignes |
 | transfermarkt.com (scraping) | Valeur marchande, effectif, âge moyen | 18 lignes |
