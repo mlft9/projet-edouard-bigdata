@@ -143,8 +143,8 @@ projet/
 ### Étape 1 — Cloner le projet
 
 ```bash
-git clone <repo>
-cd projet
+git clone https://github.com/mlft9/projet-edouard-bigdata.git
+cd projet-edouard-bigdata
 ```
 
 ---
