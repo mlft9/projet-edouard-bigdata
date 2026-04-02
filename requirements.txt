@@ -3,6 +3,7 @@ beautifulsoup4
 selenium
 pandas
 pg8000
+psycopg2-binary
 streamlit
 plotly
 python-dotenv
