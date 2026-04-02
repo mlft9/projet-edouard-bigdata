@@ -187,17 +187,93 @@ streamlit run dashboard/app.py
 
 ---
 
-## Vérification des données
+## Commandes utiles
+
+### PostgreSQL
 
 ```bash
-# Se connecter à PostgreSQL
+# Ouvrir un shell psql
 docker exec -it postgres psql -U postgres -d football_dw
 
-# Vérifier les données
+# Compter les lignes par table
+SELECT COUNT(*) FROM competitions;
 SELECT COUNT(*) FROM teams;
+SELECT COUNT(*) FROM standings;
 SELECT COUNT(*) FROM matches;
-SELECT position, team_name, points FROM standings ORDER BY position LIMIT 5;
+SELECT COUNT(*) FROM scorers;
+SELECT COUNT(*) FROM team_stats_scraped;
+
+# Classement (top 5)
+SELECT position, team_name, points, played FROM standings ORDER BY position LIMIT 5;
+
+# Meilleurs buteurs
+SELECT player_name, goals, assists FROM scorers ORDER BY goals DESC;
+
+# Matchs d'une journée
+SELECT home_team_id, away_team_id, home_score, away_score FROM matches WHERE matchday = 1;
+
+# Valeurs marchandes (top 5)
+SELECT t.name, s.market_value_m, s.squad_size, s.avg_age
+FROM team_stats_scraped s JOIN teams t ON t.id = s.team_id
+ORDER BY s.market_value_m DESC LIMIT 5;
+
+# Quitter psql
 \q
+```
+
+### Kafka
+
+```bash
+# Lister les topics
+docker exec kafka kafka-topics --bootstrap-server localhost:29092 --list
+
+# Nombre de messages dans etl_topic
+docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
+  --broker-list localhost:29092 --topic etl_topic
+
+# Lire les derniers messages (10)
+docker exec kafka kafka-console-consumer \
+  --bootstrap-server localhost:29092 --topic etl_topic \
+  --from-beginning --max-messages 10
+
+# Supprimer le topic (repart de zéro)
+docker exec kafka kafka-topics --bootstrap-server localhost:29092 \
+  --delete --topic etl_topic
+```
+
+### HDFS
+
+```bash
+# Lister le data lake
+docker exec namenode hdfs dfs -ls /data/raw/
+
+# Voir le contenu d'un fichier
+docker exec namenode hdfs dfs -ls /data/raw/teams
+docker exec namenode hdfs dfs -cat "/data/raw/teams/*.json" | head -5
+
+# Espace utilisé
+docker exec namenode hdfs dfs -du -h /data/raw/
+```
+
+### Docker
+
+```bash
+# État des conteneurs
+docker compose ps
+
+# Logs d'un service
+docker compose logs kafka
+docker compose logs spark-master
+docker compose logs postgres
+
+# Redémarrer un service
+docker compose restart kafka
+
+# Tout arrêter
+docker compose down
+
+# Tout arrêter + supprimer les volumes (repart de zéro)
+docker compose down -v
 ```
 
 ---
