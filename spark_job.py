@@ -85,6 +85,19 @@ for row in rows:
 for t, records in buckets.items():
     print(f"  {t}: {len(records)} enregistrement(s)")
 
+# Dédoublonnage par contenu complet (Kafka accumule les runs successifs de main.py)
+for t in buckets:
+    seen = set()
+    unique = []
+    for r in buckets[t]:
+        key = tuple(sorted((k, str(v)) for k, v in r.items()))
+        if key not in seen:
+            seen.add(key)
+            unique.append(r)
+    buckets[t] = unique
+
+print(f"  → après dédoublonnage : {sum(len(v) for v in buckets.values())} enregistrement(s) uniques")
+
 # ── Sauvegarde dans HDFS (data lake raw) ─────────────────────────────────────
 
 print("\n=== Sauvegarde dans HDFS ===")
