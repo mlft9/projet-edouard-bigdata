@@ -203,7 +203,13 @@ Vérifier que tous les conteneurs sont bien démarrés :
 docker compose ps
 ```
 
-Attendre ~20-30 secondes que Kafka et HDFS soient prêts avant de continuer.
+Attendre ~60 secondes que Kafka et HDFS soient complètement prêts avant de continuer.
+
+Pour vérifier que Kafka est prêt :
+```bash
+docker exec kafka kafka-topics --bootstrap-server localhost:29092 --list
+```
+Si la commande répond (même sans output), Kafka est prêt.
 
 ---
 

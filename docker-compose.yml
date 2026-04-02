@@ -38,7 +38,7 @@ services:
       - "5433:5432"     # accessible depuis l'hôte sur localhost:5433
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./warehouse/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./src/warehouse/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     restart: unless-stopped
 
   spark-master:
