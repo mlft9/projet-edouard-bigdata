@@ -219,9 +219,10 @@ Ce script collecte les données depuis l'API et Transfermarkt, les transforme, e
 
 ### Étape 6 — Lancer le job Spark (Kafka → HDFS + PostgreSQL)
 
-**Première fois uniquement** — installer psycopg2 dans le conteneur Spark :
+**Première fois uniquement** — préparer le conteneur Spark :
 
 ```bash
+docker exec -u root spark-master bash -c "mkdir -p /home/spark/.ivy2/cache && chmod -R 777 /home/spark/.ivy2"
 docker exec -u root spark-master pip install psycopg2-binary -q
 ```
 
