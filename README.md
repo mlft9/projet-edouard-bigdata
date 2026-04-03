@@ -165,6 +165,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+> **Erreur fréquente sur Windows (PowerShell)** : si vous obtenez `cannot be loaded because running scripts is disabled on this system`, exécutez cette commande une seule fois puis relancez l'activation :
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+> Alternativement, utilisez `cmd` à la place de PowerShell : `venv\Scripts\activate.bat`
+
 ---
 
 ### Étape 3 — Configurer les variables d'environnement
@@ -180,10 +186,11 @@ Contenu du `.env` à renseigner :
 ```env
 # Clé API football-data.org (gratuite sur https://www.football-data.org/)
 FOOTBALL_API_KEY=your_api_key_here
+FOOTBALL_API_BASE_URL=https://api.football-data.org/v4
 
 # PostgreSQL (laisser ces valeurs par défaut si vous utilisez Docker)
 DB_HOST=localhost
-DB_PORT=5432
+DB_PORT=5433
 DB_NAME=football_dw
 DB_USER=postgres
 DB_PASSWORD=postgres
