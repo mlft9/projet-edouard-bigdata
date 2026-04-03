@@ -165,6 +165,14 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+> **Erreur fréquente sur Debian/Ubuntu** : si `python -m venv venv` échoue avec `ensurepip is not available` ou demande d'installer un paquet `python3-...-venv`, installez le paquet correspondant à votre version de Python :
+> ```bash
+> sudo apt install python3-venv
+> # ou si vous utilisez une version spécifique (ex: 3.11)
+> sudo apt install python3.11-venv
+> ```
+> Puis relancez `python3 -m venv venv`.
+
 > **Erreur fréquente sur Windows (PowerShell)** : si vous obtenez `cannot be loaded because running scripts is disabled on this system`, exécutez cette commande une seule fois puis relancez l'activation :
 > ```powershell
 > Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
