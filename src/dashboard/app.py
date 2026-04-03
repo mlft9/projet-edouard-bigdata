@@ -29,10 +29,14 @@ DB_CONFIG = {
 
 @st.cache_data(ttl=300)
 def query(sql):
-    conn = psycopg2.connect(**DB_CONFIG)
-    df = pd.read_sql(sql, conn)
-    conn.close()
-    return df
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        df = pd.read_sql(sql, conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Erreur base de données : {e}")
+        return pd.DataFrame()
 
 
 # ── Navigation ────────────────────────────────────────────────────────────────

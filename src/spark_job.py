@@ -114,19 +114,23 @@ except Exception as e:
 # ── Truncation Postgres (ordre FK-safe) ───────────────────────────────────────
 
 print("\n=== Truncation des tables ===")
-conn = psycopg2.connect(
-    host=DB_HOST, port=DB_PORT,
-    dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
-)
-conn.autocommit = True
-cur = conn.cursor()
-cur.execute("""
-    TRUNCATE TABLE team_stats_scraped, scorers, standings, matches, teams, competitions
-    RESTART IDENTITY CASCADE
-""")
-cur.close()
-conn.close()
-print("  → Tables tronquées")
+try:
+    conn = psycopg2.connect(
+        host=DB_HOST, port=DB_PORT,
+        dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
+    )
+    conn.autocommit = True
+    cur = conn.cursor()
+    cur.execute("""
+        TRUNCATE TABLE team_stats_scraped, scorers, standings, matches, teams, competitions
+        RESTART IDENTITY CASCADE
+    """)
+    cur.close()
+    conn.close()
+    print("  → Tables tronquées")
+except Exception as e:
+    print(f"  Erreur truncation PostgreSQL : {e}")
+    raise
 
 # ── Écriture JDBC dans l'ordre FK ─────────────────────────────────────────────
 
@@ -137,17 +141,21 @@ def ecrire_table(data, table_name, drop_cols=None, cast_int=None, cast_ts=None):
     if not data:
         print(f"  (pas de données pour {table_name})")
         return
-    df = spark.createDataFrame(data)
-    if drop_cols:
-        df = df.drop(*drop_cols)
-    if cast_int:
-        for c in cast_int:
-            df = df.withColumn(c, col(c).cast("integer"))
-    if cast_ts:
-        for c in cast_ts:
-            df = df.withColumn(c, to_timestamp(col(c)))
-    df.write.jdbc(url=JDBC_URL, table=table_name, mode="append", properties=JDBC_PROPS)
-    print(f"  → {len(data)} ligne(s) écrite(s) dans '{table_name}'")
+    try:
+        df = spark.createDataFrame(data)
+        if drop_cols:
+            df = df.drop(*drop_cols)
+        if cast_int:
+            for c in cast_int:
+                df = df.withColumn(c, col(c).cast("integer"))
+        if cast_ts:
+            for c in cast_ts:
+                df = df.withColumn(c, to_timestamp(col(c)))
+        df.write.jdbc(url=JDBC_URL, table=table_name, mode="append", properties=JDBC_PROPS)
+        print(f"  → {len(data)} ligne(s) écrite(s) dans '{table_name}'")
+    except Exception as e:
+        print(f"  Erreur écriture table '{table_name}' : {e}")
+        raise
 
 
 # Parents d'abord, enfants ensuite (respecte les FK)

@@ -12,14 +12,16 @@ HEADERS = {"X-Auth-Token": FOOTBALL_API_KEY}
 def appel_api(endpoint):
     """Appelle l'API et retourne les données JSON."""
     url = f"{FOOTBALL_API_BASE_URL}{endpoint}"
-    response = requests.get(url, headers=HEADERS)
-
-    if response.status_code != 200:
-        print(f"Erreur {response.status_code} sur {url}")
+    try:
+        response = requests.get(url, headers=HEADERS)
+        if response.status_code != 200:
+            print(f"Erreur {response.status_code} sur {url}")
+            return None
+        time.sleep(API_RATE_LIMIT_DELAY)
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur réseau sur {url} : {e}")
         return None
-
-    time.sleep(API_RATE_LIMIT_DELAY)
-    return response.json()
 
 
 def collecter_classement(code=TARGET_COMPETITION):

@@ -5,7 +5,7 @@ load_dotenv()
 
 # API
 FOOTBALL_API_KEY = os.getenv("FOOTBALL_API_KEY")
-FOOTBALL_API_BASE_URL = "https://api.football-data.org/v4"
+FOOTBALL_API_BASE_URL = os.getenv("FOOTBALL_API_BASE_URL", "https://api.football-data.org/v4")
 API_RATE_LIMIT_DELAY = 6  # secondes entre chaque requête (plan gratuit = 10 req/min)
 
 # Compétition cible
